@@ -1,0 +1,60 @@
+import numpy as np
+import tensorflow as tf
+import cv2
+import os
+import tarfile
+import urllib.request
+
+def download_and_extract_model(model_url, model_dir):
+    os.makedirs(model_dir, exist_ok=True)
+    model_filename = model_url.split('/')[-1]
+    model_path = os.path.join(model_dir, model_filename)
+    if not os.path.exists(model_path):
+        print("Downloading model...")
+        urllib.request.urlretrieve(model_url, model_path)
+        print("Model downloaded successfully!")
+    else:
+        print("Model already exists!")
+
+    print("Extracting model...")
+    with tarfile.open(model_path, 'r') as tar:
+        tar.extractall(model_dir)
+    print("Model extracted successfully!")
+
+model_url = 'http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v2_coco_2018_03_29.tar.gz'
+model_dir = 'ssd_mobilenet_v2_coco_2018_03_29'
+download_and_extract_model(model_url, model_dir)
+
+model = tf.saved_model.load(os.path.join(model_dir + '\\' + model_dir, 'saved_model'))
+print(model.signatures)
+
+image = cv2.imread('image2.jpg')
+image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+image_resized = cv2.resize(image_rgb, (300, 300))
+
+input_tensor = tf.convert_to_tensor(image_resized)
+
+input_tensor = tf.expand_dims(input_tensor, axis=0)
+
+detections = model.signatures['serving_default'](input_tensor)
+
+people_counter = 0
+
+for detection in detections['detection_boxes'][0]:
+    ymin, xmin, ymax, xmax = detection
+    if detections['detection_scores'][0][0] > 0.93:  # Adjust threshold as needed
+        h, w, _ = image.shape
+        xmin = int(xmin * w)
+        xmax = int(xmax * w)
+        ymin = int(ymin * h)
+        ymax = int(ymax * h)
+        cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+        people_counter += 1
+
+
+print(int(detections['num_detections'][0]))
+
+cv2.imshow('Detected People', image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
