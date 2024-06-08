@@ -28,7 +28,7 @@ download_and_extract_model(model_url, model_dir)
 model = tf.saved_model.load(os.path.join(model_dir + '\\' + model_dir, 'saved_model'))
 print(model.signatures)
 
-image = cv2.imread('image2.jpg')
+image = cv2.imread('image.jpg')
 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 image_resized = cv2.resize(image_rgb, (300, 300))
@@ -38,12 +38,14 @@ input_tensor = tf.convert_to_tensor(image_resized)
 input_tensor = tf.expand_dims(input_tensor, axis=0)
 
 detections = model.signatures['serving_default'](input_tensor)
-
+detection_classes = detections['detection_classes'][0]
 people_counter = 0
 
+i = 0
 for detection in detections['detection_boxes'][0]:
     ymin, xmin, ymax, xmax = detection
-    if detections['detection_scores'][0][0] > 0.93:  # Adjust threshold as needed
+    class_id = int(detection_classes[i])
+    if class_id == 1 and detections['detection_scores'][0][0] > 0.93:  # Adjust threshold as needed
         h, w, _ = image.shape
         xmin = int(xmin * w)
         xmax = int(xmax * w)
@@ -51,6 +53,7 @@ for detection in detections['detection_boxes'][0]:
         ymax = int(ymax * h)
         cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
         people_counter += 1
+    i += 1
 
 
 print(int(detections['num_detections'][0]))
