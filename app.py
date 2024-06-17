@@ -23,18 +23,59 @@ def download_and_extract_model(model_url, model_dir):
 
 model_url = 'http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v2_coco_2018_03_29.tar.gz'
 model_dir = 'ssd_mobilenet_v2_coco_2018_03_29'
-download_and_extract_model(model_url, model_dir)
+#download_and_extract_model(model_url, model_dir)
 
 model = tf.saved_model.load(os.path.join(model_dir + '\\' + model_dir, 'saved_model'))
 print(model.signatures)
 
-image = cv2.imread('image.jpg')
+cap = cv2.VideoCapture(0)  # Usar la cámara predeterminada
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    image_resized = cv2.resize(image_rgb, (300, 300))
+    input_tensor = tf.convert_to_tensor(image_resized)
+    input_tensor = tf.expand_dims(input_tensor, axis=0)
+
+    detections = model.signatures['serving_default'](input_tensor)
+    detection_classes = detections['detection_classes'][0].numpy()
+    detection_scores = detections['detection_scores'][0].numpy()
+    detection_boxes = detections['detection_boxes'][0].numpy()
+    num_detections = int(detections['num_detections'][0].numpy())
+
+    people_counter = 0
+    h, w, _ = frame.shape
+
+    for i in range(num_detections):
+        class_id = int(detection_classes[i])
+        score = detection_scores[i]
+        if class_id == 1 and score > 0.93:  # Ajusta el umbral según sea necesario
+            ymin, xmin, ymax, xmax = detection_boxes[i]
+            xmin = int(xmin * w)
+            xmax = int(xmax * w)
+            ymin = int(ymin * h)
+            ymax = int(ymax * h)
+            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+            people_counter += 1
+
+    print(f"Personas detectadas: {people_counter}")
+    cv2.imshow('Detected People', frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+
+'''
+image = cv2.imread('image2.jpg')
 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 image_resized = cv2.resize(image_rgb, (300, 300))
-
 input_tensor = tf.convert_to_tensor(image_resized)
-
 input_tensor = tf.expand_dims(input_tensor, axis=0)
 
 detections = model.signatures['serving_default'](input_tensor)
@@ -61,3 +102,4 @@ print(int(detections['num_detections'][0]))
 cv2.imshow('Detected People', image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+'''
